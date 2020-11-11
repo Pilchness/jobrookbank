@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import dynamic from 'next/dynamic';
 
-const getDatesArray = () => {
+const StarRatings = dynamic(() => import('react-star-ratings'), {
+  ssr: false
+});
+
+const getDatesArray = (appointments) => {
   const monthFromNow = [];
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -19,29 +24,56 @@ const getDatesArray = () => {
         disabled: true
       });
     } else {
+      let isoDate = date.toISOString().slice(0, 11) + '00:00:00.000Z'; //'2020-12-12T00:00:00.000Z'; 2020-12-03T18:29:15.218Z
+      //console.log(isoDate);
       monthFromNow.push({
         date: `${day} ${number} ${month}`,
         disabled: false,
-        appointments: ['10:00', '11:00', '13:00', '14:00', '15:00']
+        appointments: appointments[isoDate]
       });
     }
   }
-
+  console.log('MFN:' + JSON.stringify(monthFromNow[4]));
   return monthFromNow;
 };
 
-export const OnlineBooking = () => {
+export const OnlineBooking = (props) => {
   const [selectedDate, updateSelectedDate] = useState();
-  const [selectedAppointments, updateSelectedAppointments] = useState([]);
+  const [selectedAppointments, updateSelectedAppointments] = useState();
   const [selectedTime, updateSelectedTime] = useState();
+
+  //console.log(props.appointments[props.dateKeys[0]][1300]);
+  const appointments = props.appointments;
+  //console.log('APP:' + JSON.stringify(appointments));
 
   const dateButtonHandler = (data) => {
     updateSelectedDate(data.date);
-    updateSelectedAppointments(data.appointments);
+    //console.log('datap:' + JSON.stringify(data.appointments));
+    if (data.appointments) {
+      const timesAvailable = Object.keys(data.appointments);
+      console.log(timesAvailable);
+      let newAppointmentSelection = [];
+
+      timesAvailable.forEach((time) => {
+        newAppointmentSelection.push(data.appointments[time] === 'available' ? time : null);
+      });
+
+      updateSelectedAppointments(newAppointmentSelection);
+    } else return null;
   };
 
   const timeButtonHandler = (event) => {
     updateSelectedTime(event.target.value);
+  };
+
+  const checkforNullAppointments = (appointments) => {
+    let nullCount = 0;
+    appointments.forEach((appointment) => {
+      if (appointment === null) {
+        nullCount++;
+      }
+    });
+    return nullCount !== appointments.length;
   };
   return (
     <>
@@ -59,7 +91,7 @@ export const OnlineBooking = () => {
               margin: 4
             }}
           >
-            {getDatesArray().map((data) => {
+            {getDatesArray(appointments).map((data) => {
               return (
                 <button
                   disabled={data.disabled}
@@ -83,16 +115,20 @@ export const OnlineBooking = () => {
               <strong>{selectedDate}</strong>
               <br></br>
               <div>
-                {selectedAppointments ? (
+                {selectedAppointments && checkforNullAppointments(selectedAppointments) ? (
                   selectedAppointments.map((time) => {
-                    return (
+                    return time ? (
                       <button value={time} onClick={(event) => timeButtonHandler(event)}>
                         {time}
                       </button>
+                    ) : (
+                      ''
                     );
                   })
                 ) : (
-                  <div></div>
+                  <div>
+                    <p>No appointments available</p>
+                  </div>
                 )}
               </div>
             </div>
